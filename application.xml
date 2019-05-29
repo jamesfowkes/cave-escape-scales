@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+
+<board type="Arduino Uno" name="Cave Escape Weight Trigger">
+    <info>
+        An weight-activated relay based on a bathroom scale, with ethernet override
+    </info>
+    
+    <devices>
+        <device name="Ethernet" type="ENC28J60">
+            <setting id="cs_pin" value="10"></setting>
+        </device>
+
+        <device name="Scales" type="HX711">
+            <setting id="dout_pin" value="6"></setting>
+            <setting id="sck_pin" value="7"></setting>
+        </device>
+
+        <device name="Relay1" type="Digital Output">
+            <setting id="pin" value="2"></setting>
+        </device>
+
+        <device name="Relay2" type="Digital Output">
+            <setting id="pin" value="3"></setting>
+        </device>
+
+        <device name="Set Target Weight" type="Debounced Input">
+            <setting id="pin" value="8"></setting>
+        </device>
+
+    </devices>
+
+    <parameters>
+        <parameter name="Target Weight" type="Integer">
+            <setting id="type" value="int32_t"/>
+            <setting id="default" value="0"/>
+            <setting id="use_eeprom" value="true"/>
+        </parameter>
+        <parameter name="Weight Window" type="Integer">
+            <setting id="type" value="uint16_t"/>
+            <setting id="default" value="0"/>
+            <setting id="use_eeprom" value="true"/>
+        </parameter>
+    </parameters>
+    <modules>
+    	<module>HTTP Get Server</module>
+        <module>Task</module>
+    </modules>
+
+    <custom_code>
+    	<file>handler.cpp</file>
+    </custom_code>
+
+    <defines>
+        <define>ENC28J60_BUFFER_SIZE 128</define>
+    </defines>
+
+    <logging>
+        <log_module>APPLICATION</log_module>
+    </logging>
+    <raat protocol="url"></raat>
+</board>
