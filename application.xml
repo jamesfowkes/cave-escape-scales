@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<board type="Arduino Uno" name="Cave Escape Weight Trigger">
+<board type="Arduino Uno" name="Cave Escape Scales">
     <info>
         An weight-activated relay based on a bathroom scale, with ethernet override
     </info>
@@ -13,18 +13,33 @@
         <device name="Scales" type="HX711">
             <setting id="dout_pin" value="6"></setting>
             <setting id="sck_pin" value="7"></setting>
+            <setting id="tare_at_boot" value="true"></setting>
         </device>
 
-        <device name="Relay1" type="Digital Output">
+        <device name="Maglock" type="Digital Output">
             <setting id="pin" value="2"></setting>
         </device>
 
-        <device name="Relay2" type="Digital Output">
-            <setting id="pin" value="3"></setting>
+        <device name="Winch" type="Digital Output">
+            <setting id="pin" value="8"></setting>
         </device>
 
         <device name="Set Target Weight" type="Debounced Input">
-            <setting id="pin" value="8"></setting>
+            <setting id="pin" value="A0"></setting>
+            <setting id="pullup" value="true"></setting>
+        </device>
+
+        <device name="GND1" type="Digital Output">
+            <setting id="pin" value="A1"></setting>
+        </device>
+
+        <device name="Tare" type="Debounced Input">
+            <setting id="pin" value="A2"></setting>
+            <setting id="pullup" value="true"></setting>
+        </device>
+
+        <device name="GND2" type="Digital Output">
+            <setting id="pin" value="A3"></setting>
         </device>
 
     </devices>
@@ -57,5 +72,5 @@
     <logging>
         <log_module>APPLICATION</log_module>
     </logging>
-    <raat protocol="url"></raat>
+    <raat protocol="url" loglevel="RAAT_LOG_LEVEL_DEBUG"></raat>
 </board>
