@@ -12,7 +12,7 @@
 
 #include "http-get-server.hpp"
 
-static HTTPGetServer s_server(true);
+static HTTPGetServer s_server(NULL);
 
 static const raat_devices_struct * pDevices;
 static const raat_params_struct * pParams;
@@ -24,8 +24,9 @@ static void send_standard_erm_response()
     s_server.finish_headers();
 }
 
-static void raise(char const * const url)
+static void raise(char const * const url, char const * const end)
 {
+    (void)end;
     raat_logln_P(LOG_APP, PSTR("Raise..."));
     pDevices->pWinch->set(true);
 
@@ -35,8 +36,9 @@ static void raise(char const * const url)
     }
 }
 
-static void stop(char const * const url)
+static void stop(char const * const url, char const * const end)
 {
+    (void)end;
     raat_logln_P(LOG_APP, PSTR("Stop..."));
     pDevices->pWinch->set(false);
 
@@ -47,8 +49,9 @@ static void stop(char const * const url)
 }
 
 
-static void set_target(char const * const url)
+static void set_target(char const * const url, char const * const end)
 {
+    (void)end;
     long current_weight;
     if (pDevices->pScales->get_scaled(current_weight))
     {
@@ -62,8 +65,9 @@ static void set_target(char const * const url)
     }
 }
 
-static void tare(char const * const url)
+static void tare(char const * const url, char const * const end)
 {
+    (void)end;
     pDevices->pScales->tare();
     if (url)
     {
@@ -71,9 +75,20 @@ static void tare(char const * const url)
     }
 }
 
-static void open(char const * const url)
+static void open_door(char const * const url, char const * const end)
 {
+    (void)end;
     pDevices->pMaglock->set(false);
+    if (url)
+    {
+        send_standard_erm_response();
+    }
+}
+
+static void close_door(char const * const url, char const * const end)
+{
+    (void)end;
+    pDevices->pMaglock->set(true);
     if (url)
     {
         send_standard_erm_response();
@@ -85,6 +100,7 @@ static const char STOP_URL[] PROGMEM = "/stop";
 static const char SET_TARGET_URL[] PROGMEM = "/set_target";
 static const char TARE_URL[] PROGMEM = "/tare";
 static const char OPEN_URL[] PROGMEM = "/open";
+static const char CLOSE_URL[] PROGMEM = "/close";
 
 static http_get_handler s_handlers[] = 
 {
@@ -92,7 +108,8 @@ static http_get_handler s_handlers[] =
     {STOP_URL, stop},
     {SET_TARGET_URL, set_target},
     {TARE_URL, tare},
-    {OPEN_URL, open},
+    {OPEN_URL, open_door},
+    {CLOSE_URL, close_door},
     {"", NULL}
 };
 
@@ -135,18 +152,19 @@ static void weight_trigger_task_fn(RAATTask& ThisTask, void * pTaskData)
     if (s_weight_debouncer.check_high_and_clear())
     {
         raat_logln_P(LOG_APP, PSTR("Weight trigger!"));
-        raise(NULL);
+        raise(NULL, NULL);
     }
     else if (s_weight_debouncer.check_low_and_clear())
     {
         raat_logln_P(LOG_APP, PSTR("Weight untrigger!"));
-        stop(NULL);
+        stop(NULL, NULL);
     }
 }
 static RAATTask s_weight_trigger_task(100, weight_trigger_task_fn, NULL);
 
 static void debug_task_fn(RAATTask& ThisTask, void * pTaskData)
 {
+    (void)ThisTask; (void)pTaskData;
     long current_weight;
     if (pDevices->pScales->get_scaled(current_weight))
     {
@@ -171,13 +189,11 @@ void raat_custom_loop(const raat_devices_struct& devices, const raat_params_stru
     s_debug_task.run();
     if (devices.pSet_Target_Weight->check_low_and_clear())
     {
-        set_target(NULL);
+        set_target(NULL, NULL);
     }
 
     if (devices.pTare->check_low_and_clear())
     {
-        tare(NULL);
+        tare(NULL, NULL);
     }
-
-
 }
