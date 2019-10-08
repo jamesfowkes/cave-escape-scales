@@ -17,6 +17,8 @@ static HTTPGetServer s_server(NULL);
 static const raat_devices_struct * pDevices;
 static const raat_params_struct * pParams;
 
+static bool bOverride = false;
+
 static void send_standard_erm_response()
 {
     s_server.set_response_code_P(PSTR("200 OK"));
@@ -27,7 +29,11 @@ static void send_standard_erm_response()
 static void raise(char const * const url, char const * const end)
 {
     (void)end;
-    raat_logln_P(LOG_APP, PSTR("Raise..."));
+    if (!bOverride)
+    {
+        raat_logln_P(LOG_APP, PSTR("Raise..."));
+    }
+
     pDevices->pWinch->set(true);
 
     if (url)
@@ -168,7 +174,7 @@ static void debug_task_fn(RAATTask& ThisTask, void * pTaskData)
     long current_weight;
     if (pDevices->pScales->get_scaled(current_weight))
     {
-        raat_logln_P(LOG_APP, PSTR("Weight: %" PRIu32), current_weight);    
+        raat_logln_P(LOG_APP, PSTR("Weight: %" PRIu32), current_weight);
     }
 }
 static RAATTask s_debug_task(2000, debug_task_fn, NULL);
@@ -185,15 +191,27 @@ void raat_custom_setup(const raat_devices_struct& devices, const raat_params_str
 void raat_custom_loop(const raat_devices_struct& devices, const raat_params_struct& params)
 {
     (void)devices; (void)params;
+    
     s_weight_trigger_task.run();
+    
     s_debug_task.run();
     if (devices.pSet_Target_Weight->check_low_and_clear())
     {
         set_target(NULL, NULL);
     }
 
-    if (devices.pTare->check_low_and_clear())
+    if (devices.pToggle_Override->check_low_and_clear())
     {
-        tare(NULL, NULL);
+        bOverride = !bOverride;
+        raat_logln_P(LOG_APP, PSTR("Override: %s"), bOverride ? "on" : "off");
+
+        if (bOverride)
+        {
+            raise(NULL, NULL);
+        }
+        else
+        {
+            stop(NULL, NULL);
+        }
     }
 }

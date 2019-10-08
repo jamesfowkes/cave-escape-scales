@@ -27,15 +27,17 @@
         <device name="Set Target Weight" type="Debounced Input">
             <setting id="pin" value="A0"></setting>
             <setting id="pullup" value="true"></setting>
+            <setting id="debounce_time" value="2000"></setting>
         </device>
 
         <device name="GND1" type="Digital Output">
             <setting id="pin" value="A1"></setting>
         </device>
 
-        <device name="Tare" type="Debounced Input">
+        <device name="Toggle Override" type="Debounced Input">
             <setting id="pin" value="A2"></setting>
             <setting id="pullup" value="true"></setting>
+            <setting id="debounce_time" value="2000"></setting>
         </device>
 
         <device name="GND2" type="Digital Output">
