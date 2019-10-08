@@ -12,6 +12,14 @@
 
 #include "http-get-server.hpp"
 
+typedef struct _timeout
+{
+    int32_t time;
+    bool active;
+} timeout;
+
+static timeout s_lower_door_timeout;
+
 static HTTPGetServer s_server(NULL);
 
 static const raat_devices_struct * pDevices;
@@ -53,7 +61,6 @@ static void stop(char const * const url, char const * const end)
         send_standard_erm_response();
     }
 }
-
 
 static void set_target(char const * const url, char const * const end)
 {
@@ -101,12 +108,65 @@ static void close_door(char const * const url, char const * const end)
     }
 }
 
+static void open_lower_door(void)
+{
+    raat_logln_P(LOG_APP, PSTR("Opening lower door"));
+    s_lower_door_timeout.active = false;
+    pDevices->pMaglock2->set(false);
+}
+
+static void close_lower_door(void)
+{
+    raat_logln_P(LOG_APP, PSTR("Closing lower door"));
+    s_lower_door_timeout.active = false;
+    pDevices->pMaglock2->set(true);
+}
+
+static void start_lower_door_timeout(int32_t timeout)
+{
+    raat_logln_P(LOG_APP, PSTR("Starting %" PRIi32 " timeout on lower door"), timeout);
+    s_lower_door_timeout.time = (timeout / 100) * 100;;
+    s_lower_door_timeout.active = true;
+}
+
+static void open_lower_door(char const * const url, char const * const end)
+{
+    (void)url;
+    int32_t output_pin;
+    int32_t timeout;
+
+    bool success = false;
+
+    send_standard_erm_response();
+
+    if ((success = raat_parse_single_numeric(end+1, timeout, NULL)))
+    {
+        success &= timeout > 100;
+        if (success)
+        {
+            open_lower_door();
+            start_lower_door_timeout(timeout);
+        }
+    }
+    else
+    {
+        open_lower_door();
+    }
+
+    if (url)
+    {
+        send_standard_erm_response();
+    }
+}
+
 static const char RAISE_URL[] PROGMEM = "/raise";
 static const char STOP_URL[] PROGMEM = "/stop";
 static const char SET_TARGET_URL[] PROGMEM = "/set_target";
 static const char TARE_URL[] PROGMEM = "/tare";
 static const char OPEN_URL[] PROGMEM = "/open";
 static const char CLOSE_URL[] PROGMEM = "/close";
+static const char OPEN_LOWER_DOOR_URL[] PROGMEM = "/lower_door/open";
+static const char CLOSE_LOWER_DOOR_URL[] PROGMEM = "/lower_door/close";
 
 static http_get_handler s_handlers[] = 
 {
@@ -116,6 +176,8 @@ static http_get_handler s_handlers[] =
     {TARE_URL, tare},
     {OPEN_URL, open_door},
     {CLOSE_URL, close_door},
+    {OPEN_LOWER_DOOR_URL, open_lower_door},
+    {CLOSE_LOWER_DOOR_URL, close_lower_door},
     {"", NULL}
 };
 
@@ -179,6 +241,20 @@ static void debug_task_fn(RAATTask& ThisTask, void * pTaskData)
 }
 static RAATTask s_debug_task(2000, debug_task_fn, NULL);
 
+static void timeout_task_fn(RAATTask& task, void * pTaskData)
+{    
+    if (s_lower_door_timeout.active && s_lower_door_timeout.time > 0)
+    {
+        s_lower_door_timeout.time -= 100;   
+        if (s_lower_door_timeout.time == 0)
+        {
+            raat_logln_P(LOG_APP, PSTR("Timeout finish"));
+            close_lower_door();
+        }
+    }
+}
+static RAATTask s_timeout_task(100, timeout_task_fn);
+
 void raat_custom_setup(const raat_devices_struct& devices, const raat_params_struct& params)
 {
     (void)params;
@@ -186,6 +262,7 @@ void raat_custom_setup(const raat_devices_struct& devices, const raat_params_str
     pParams = &params;
 
     devices.pMaglock->set(true);
+    devices.pMaglock2->set(true);
 }
 
 void raat_custom_loop(const raat_devices_struct& devices, const raat_params_struct& params)
@@ -214,4 +291,5 @@ void raat_custom_loop(const raat_devices_struct& devices, const raat_params_stru
             stop(NULL, NULL);
         }
     }
+    s_timeout_task.run();
 }

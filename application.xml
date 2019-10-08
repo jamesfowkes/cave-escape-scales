@@ -20,6 +20,10 @@
             <setting id="pin" value="2"></setting>
         </device>
 
+        <device name="Maglock2" type="Digital Output">
+            <setting id="pin" value="3"></setting>
+        </device>
+
         <device name="Winch" type="Digital Output">
             <setting id="pin" value="8"></setting>
         </device>
