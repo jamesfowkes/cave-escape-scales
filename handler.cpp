@@ -25,7 +25,8 @@ static HTTPGetServer s_server(NULL);
 static const raat_devices_struct * pDevices;
 static const raat_params_struct * pParams;
 
-static bool bOverride = false;
+static bool s_bOverride = false;
+static bool s_bGameComplete = false;
 
 static void send_standard_erm_response()
 {
@@ -37,7 +38,7 @@ static void send_standard_erm_response()
 static void raise(char const * const url, char const * const end)
 {
     (void)end;
-    if (!bOverride)
+    if (!s_bOverride)
     {
         raat_logln_P(LOG_APP, PSTR("Raise..."));
     }
@@ -132,7 +133,6 @@ static void start_lower_door_timeout(int32_t timeout)
 static void open_lower_door(char const * const url, char const * const end)
 {
     (void)url;
-    int32_t output_pin;
     int32_t timeout;
 
     bool success = false;
@@ -159,6 +159,15 @@ static void open_lower_door(char const * const url, char const * const end)
     }
 }
 
+static void game_complete_poll(char const * const url, char const * const end)
+{
+    (void)end;
+    if (url)
+    {
+        send_standard_erm_response();
+        s_server.add_body_P(s_bGameComplete ? PSTR("COMPLETE\r\n\r\n") : PSTR("NOT COMPLETE\r\n\r\n"));
+    }
+}
 static const char RAISE_URL[] PROGMEM = "/raise";
 static const char STOP_URL[] PROGMEM = "/stop";
 static const char SET_TARGET_URL[] PROGMEM = "/set_target";
@@ -167,6 +176,7 @@ static const char OPEN_URL[] PROGMEM = "/open";
 static const char CLOSE_URL[] PROGMEM = "/close";
 static const char OPEN_LOWER_DOOR_URL[] PROGMEM = "/lower_door/open";
 static const char CLOSE_LOWER_DOOR_URL[] PROGMEM = "/lower_door/close";
+static const char GAME_COMPLETE_POLL[] PROGMEM = "/game_complete";
 
 static http_get_handler s_handlers[] = 
 {
@@ -178,6 +188,7 @@ static http_get_handler s_handlers[] =
     {CLOSE_URL, close_door},
     {OPEN_LOWER_DOOR_URL, open_lower_door},
     {CLOSE_LOWER_DOOR_URL, close_lower_door},
+    {GAME_COMPLETE_POLL, game_complete_poll},
     {"", NULL}
 };
 
@@ -220,6 +231,7 @@ static void weight_trigger_task_fn(RAATTask& ThisTask, void * pTaskData)
     if (s_weight_debouncer.check_high_and_clear())
     {
         raat_logln_P(LOG_APP, PSTR("Weight trigger!"));
+        s_bGameComplete = true;
         raise(NULL, NULL);
     }
     else if (s_weight_debouncer.check_low_and_clear())
@@ -243,6 +255,7 @@ static RAATTask s_debug_task(2000, debug_task_fn, NULL);
 
 static void timeout_task_fn(RAATTask& task, void * pTaskData)
 {    
+    (void)task; (void)pTaskData;
     if (s_lower_door_timeout.active && s_lower_door_timeout.time > 0)
     {
         s_lower_door_timeout.time -= 100;   
@@ -279,10 +292,10 @@ void raat_custom_loop(const raat_devices_struct& devices, const raat_params_stru
 
     if (devices.pToggle_Override->check_low_and_clear())
     {
-        bOverride = !bOverride;
-        raat_logln_P(LOG_APP, PSTR("Override: %s"), bOverride ? "on" : "off");
+        s_bOverride = !s_bOverride;
+        raat_logln_P(LOG_APP, PSTR("Override: %s"), s_bOverride ? "on" : "off");
 
-        if (bOverride)
+        if (s_bOverride)
         {
             raise(NULL, NULL);
         }
