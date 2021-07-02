@@ -4,7 +4,7 @@
     <info>
         An weight-activated relay based on a bathroom scale, with ethernet override
     </info>
-    
+
     <devices>
         <device name="Ethernet" type="ENC28J60">
             <setting id="cs_pin" value="10"></setting>
@@ -48,6 +48,10 @@
             <setting id="pin" value="A3"></setting>
         </device>
 
+        <device name="Tare" type="Debounced Input">
+            <setting id="pin" value="9"></setting>
+        </device>
+
     </devices>
 
     <parameters>
@@ -62,6 +66,7 @@
             <setting id="use_eeprom" value="true"/>
         </parameter>
     </parameters>
+
     <modules>
     	<module>HTTP Get Server</module>
         <module>Task</module>
@@ -72,7 +77,7 @@
     </custom_code>
 
     <defines>
-        <define>ENC28J60_BUFFER_SIZE 128</define>
+        <define>ENC28J60_BUFFER_SIZE 1024</define>
     </defines>
 
     <logging>

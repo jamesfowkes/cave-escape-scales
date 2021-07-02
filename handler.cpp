@@ -168,6 +168,35 @@ static void game_complete_poll(char const * const url, char const * const end)
         s_server.add_body_P(s_bGameComplete ? PSTR("COMPLETE\r\n\r\n") : PSTR("NOT COMPLETE\r\n\r\n"));
     }
 }
+
+static void set_scale_factor(char const * const url)
+{
+    raat_logln_P(LOG_APP, PSTR("Setting scale factor to %d"));
+    pDevices->pScales->set_scale(url+7);
+
+    if (url)
+    {
+        send_standard_erm_response();
+    }
+}
+
+static void get_weight(char const * const url)
+{
+    if (url)
+    {
+        long current_weight = 0;
+        char buffer[16];
+
+        if (pDevices->pScales->get_scaled(current_weight))
+        {
+            sprintf(buffer, "%lu", current_weight);
+        }
+
+        send_standard_erm_response();
+        s_server.add_body(buffer);
+    }
+}
+
 static const char RAISE_URL[] PROGMEM = "/raise";
 static const char STOP_URL[] PROGMEM = "/stop";
 static const char SET_TARGET_URL[] PROGMEM = "/set_target";
@@ -177,8 +206,10 @@ static const char CLOSE_URL[] PROGMEM = "/close";
 static const char OPEN_LOWER_DOOR_URL[] PROGMEM = "/lower_door/open";
 static const char CLOSE_LOWER_DOOR_URL[] PROGMEM = "/lower_door/close";
 static const char GAME_COMPLETE_POLL[] PROGMEM = "/game_complete";
+static const char SCALE_URL[] PROGMEM = "/scale";
+static const char GET_URL[] PROGMEM = "/get";
 
-static http_get_handler s_handlers[] = 
+static http_get_handler s_handlers[] =
 {
     {RAISE_URL, raise},
     {STOP_URL, stop},
@@ -189,6 +220,8 @@ static http_get_handler s_handlers[] =
     {OPEN_LOWER_DOOR_URL, open_lower_door},
     {CLOSE_LOWER_DOOR_URL, close_lower_door},
     {GAME_COMPLETE_POLL, game_complete_poll},
+    {SCALE_URL, set_scale_factor},
+    {GET_URL, get_weight},
     {"", NULL}
 };
 
@@ -212,7 +245,7 @@ static bool weight_reader_fn()
 
     if (pDevices->pScales->get_scaled(current_weight))
     {
-        return (current_weight <= (long)max_weight) && (current_weight >= (long)min_weight);
+        return ((uint32_t)current_weight <= max_weight) && ((uint32_t)current_weight >= min_weight);
     }
     else
     {
@@ -221,11 +254,13 @@ static bool weight_reader_fn()
 }
 static RAATDebouncer s_weight_debouncer(weight_reader_fn, 10);
 
-static void weight_trigger_task_fn(RAATTask& ThisTask, void * pTaskData)
+static void weight_trigger_task_fn(
+    __attribute__((unused)) RAATTask& pThisTask, __attribute__((unused)) void * pTaskData
+)
 {
     (void)ThisTask;
     (void)pTaskData;
-    
+
     s_weight_debouncer.tick();
 
     if (s_weight_debouncer.check_high_and_clear())
@@ -254,11 +289,11 @@ static void debug_task_fn(RAATTask& ThisTask, void * pTaskData)
 static RAATTask s_debug_task(2000, debug_task_fn, NULL);
 
 static void timeout_task_fn(RAATTask& task, void * pTaskData)
-{    
+{
     (void)task; (void)pTaskData;
     if (s_lower_door_timeout.active && s_lower_door_timeout.time > 0)
     {
-        s_lower_door_timeout.time -= 100;   
+        s_lower_door_timeout.time -= 100;
         if (s_lower_door_timeout.time == 0)
         {
             raat_logln_P(LOG_APP, PSTR("Timeout finish"));
@@ -268,6 +303,7 @@ static void timeout_task_fn(RAATTask& task, void * pTaskData)
 }
 static RAATTask s_timeout_task(100, timeout_task_fn);
 
+
 void raat_custom_setup(const raat_devices_struct& devices, const raat_params_struct& params)
 {
     (void)params;
@@ -276,14 +312,17 @@ void raat_custom_setup(const raat_devices_struct& devices, const raat_params_str
 
     devices.pMaglock->set(true);
     devices.pMaglock2->set(true);
+
+    raat_logln_P(LOG_APP, PSTR("Target weight: %" PRIu32), pParams->pTarget_Weight->get());
+    raat_logln_P(LOG_APP, PSTR("Target window: +/-%" PRIu16), pParams->pWeight_Window->get());
 }
 
 void raat_custom_loop(const raat_devices_struct& devices, const raat_params_struct& params)
 {
     (void)devices; (void)params;
-    
+
     s_weight_trigger_task.run();
-    
+
     s_debug_task.run();
     if (devices.pSet_Target_Weight->check_low_and_clear())
     {
